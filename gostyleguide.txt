@@ -1,0 +1,190 @@
+Ref: https://google.github.io/styleguide/go/
+
+[GUIDE]
+
+1. Clarity
+ - What is the code actually doing?
+ - Why is the code doing what it does?
+
+2. Simplicity
+ - Least mechanism
+
+3. Concision
+4. Maintainability
+5. Consistency
+
+[DECISIONS]
+
+1. Naming
+ - Underscores
+ - Package names
+ - Receiver names
+ - Constant names
+ - Initialisms
+ - Getters
+ - Variable names
+ - Repetition
+  + Package vs. exported symbol name
+  + Variable name vs. type
+  + External context vs. local names
+
+2. Commentary
+ - Comment line length
+ - Doc comments
+ - Comment sentences
+ - Examples
+ - Named result parameters
+ - Package comments
+ 
+3. Imports
+ - Import renaming
+ - Import grouping
+ - Import "blank" (import _)
+ - Import "dot" (import .)
+ 
+4. Errors
+ - Returning errors
+ - Error strings
+ - Handle errors
+ - In-band errors
+ - Indent error flows
+ 
+5. Language
+ - Literal formating
+  + Field names
+  + Matching braces
+  + Cuddled braces
+  + Repeated type names
+  + Zero-value fields
+  + Concise
+  + Explicit
+  + Nil slices
+  + Indentation confusion
+  + Function formatting
+  + Conditionals and loops
+  + Copying
+  + Don’t panic
+  + Must functions
+  + Goroutine lifetimes
+  + Interfaces
+  + Generics
+  + Pass values
+  + Receiver type
+  + switch and break
+  + Synchronous functions
+  + Type aliases
+  + Use %q
+  + Use any
+  
+6. Common libraries
+ - Flags
+ - Logging
+ - Contexts
+ - Custom contexts
+  + Do not create custom context types or use interfaces other than context.Context in function signatures. There are no exceptions to this rule.
+ - crypto/rand
+
+7. Useful test failures
+ - Assertion libraries
+ - Identify the function
+ - Identify the input
+ - Got before want
+ - Full structure comparisons
+ - Compare stable results
+ - Keep going
+ - Equality comparison and diffs
+ - Level of detail
+ - Print diffs
+ - Test error semantics
+ 
+8. Test structure
+ - Subtests
+ - Subtest names
+ - Table-driven tests
+  + Data-driven test cases
+  + Identifying the row
+ - Test helpers
+ - Test package
+  + Tests in the same package
+  + Tests in a different package
+ - Use package testing
+ 
+9. Non-decisions
+
+[BEST PRACTICES]
+
+1. Naming
+ - Function and method names
+  + Avoid repetition
+  + Naming conventions
+ - Test double packages and types
+  + Creating test helper packages
+  + Simple case
+  + Multiple test double behaviors
+  + Multiple doubles for multiple types
+  + Local variables in tests
+ - Shadowing
+ - Util packages
+
+2. Package size
+3. Imports
+ - Protos and stubs
+ - Import ordering
+ 
+4. Error handling
+ - Error structure
+ - Adding information to errors
+ - Placement of %w in errors
+ - Logging errors
+  + Custom verbosity levels
+ - Program initialization
+ - Program checks and panics
+ - When to panic
+
+5. Documentation
+ - Conventions
+  + Parameters and configuration
+  + Contexts
+  + Concurrency
+  + Cleanup
+  + Errors
+ - Preview
+ - Godoc formatting
+
+6. Signal boosting
+7. Variable declarations
+ - Initialization
+ - Declaring variables with zero values
+ - Composite literals
+ - Size hints
+ - Channel direction
+ 
+7. Function argument lists
+ - Option structure
+ - Variadic options
+ 
+8. Complex command-line interfaces
+9. Tests
+ - Leave testing to the Test function
+ - Designing extensible validation APIs
+  + Acceptance testing
+  + Writing an acceptance test 
+  + Use real transports
+ - t.Error vs. t.Fatal
+ - Error handling in test helpers
+ - Don’t call t.Fatal from separate goroutines
+ - Use field names in struct literals
+ - Keep setup code scoped to specific tests
+  + When to use a custom TestMain entrypoint
+  + Amortizing common test setup
+
+10. String concatenation
+ - Prefer “+” for simple cases
+ - Prefer fmt.Sprintf when formatting
+ - Prefer strings.Builder for constructing a string piecemeal
+ - Constant strings
+ 
+11. Global state
+ - Major forms of package state APIs
+ - Litmus tests
+ - Providing a default instance

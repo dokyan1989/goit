@@ -15,8 +15,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/dokyan1989/goit/util/fileutil"
-	"github.com/dokyan1989/goit/util/projectpath"
+	"github.com/dokyan1989/goit/misc/fileutil"
+	"github.com/dokyan1989/goit/misc/projectpath"
 	// "github.com/fatih/color"
 )
 

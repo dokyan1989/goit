@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+option go_package = "github.com/dokyan1989/goit/app/hellogrpc/pb";
+package goit.app.hellogrpc.pb;
+
+import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
+// import "google/rpc/code.proto";
+// import "tekone/app/loyalty/lpe_service/api/data.proto";
+
+//-------------------------end generated header---------------------------//
+
+// AdminService
+service AdminService {
+  // ListRamEvents
+  rpc ListRamEvents(ListRamEventsRequest) returns (ListRamEventsResponse) {
+    option (google.api.http) = {
+      get : "/admin/api/v1/ram-events"
+    };
+  }
+
+  // UpsertRamEvent
+  rpc UpsertRamEvent(UpsertRamEventRequest) returns (UpsertRamEventResponse) {
+    option (google.api.http) = {
+      post : "/admin/api/v1/ram-events/{id}",
+      body : "*"
+    };
+  }
+}
+
+// ListRamEventsRequest
+message ListRamEventsRequest {
+  // id
+  int64 id = 1;
+  // key
+  string key = 2;
+  // status
+  string status = 3 [ (buf.validate.field).string.min_len = 1 ];
+  // ref
+  string ref = 4;
+  // type
+  int32 type = 5;
+  // limit
+  int32 limit = 101;
+  // offset
+  int32 offset = 102;
+  // order_direction
+  string order_direction = 103 [
+    (buf.validate.field).string.in = "ASC",
+    (buf.validate.field).string.in = "DESC"
+  ];
+
+  // order_by
+  string order_by = 104 [
+    (buf.validate.field).string.in = "created_at",
+    (buf.validate.field).string.in = "updated_at"
+  ];
+
+  // created_at_lte
+  int32 created_at_lte = 105;
+  // created_at_gte
+  int32 created_at_gte = 106;
+}
+
+// ListRamEventsResponse
+message ListRamEventsResponse {
+  // events
+  repeated RamEvent events = 1;
+}
+
+// UpsertRamEventRequest
+message UpsertRamEventRequest {
+  // id
+  int64 id = 1;
+  // type
+  int32 type = 2;
+  // payload (json string)
+  string payload = 3;
+  // ref
+  string ref = 4;
+  // key
+  string key = 5;
+  // status
+  string status = 6 [
+    (buf.validate.field).string.in = "CREATED",
+    (buf.validate.field).string.in = "HANDLING",
+    (buf.validate.field).string.in = "DONE",
+    (buf.validate.field).string.in = "FAILED_HANDLE"
+  ];
+  // retry_count
+  int32 retry_count = 7;
+}
+
+// UpsertRamEventResponse
+message UpsertRamEventResponse {
+  // message
+  string message = 1;
+}
+
+message RamEvent {
+  // id
+  int64 id = 1;
+  // type
+  int32 type = 2;
+  // type_name
+  string type_name = 3;
+  // payload (json string)
+  string payload = 4;
+  // ref
+  string ref = 5;
+  // key
+  string key = 6;
+  // status
+  string status = 7;
+  // retry_count
+  int32 retry_count = 8;
+  // created_at
+  int64 created_at = 9;
+  // updated_at
+  int64 updated_at = 10;
+  // actions
+  repeated RamEventAction actions = 11;
+}
+
+message RamEventAction {
+  // id
+  int64 id = 1;
+  // event_id
+  int64 event_id = 2;
+  // retry_id
+  int32 retry_id = 3;
+  // status
+  string status = 4;
+  // error
+  string error = 5;
+  // created_at
+  int64 created_at = 6;
+  // updated_at
+  int64 updated_at = 7;
+}

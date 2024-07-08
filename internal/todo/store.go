@@ -8,8 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type postgres struct {
+type Store struct {
 	db *pgxpool.Pool
+}
+
+func NewStore(db *pgxpool.Pool) *Store {
+	return &Store{db: db}
 }
 
 type CreateTodoParams struct {
@@ -17,10 +21,19 @@ type CreateTodoParams struct {
 	Status string
 }
 
-func (s *postgres) CreateTodo(ctx context.Context, params CreateTodoParams) (int64, error) {
+func (s *Store) CreateTodo(ctx context.Context, params CreateTodoParams) (int64, error) {
+	id, err := createTodo(ctx, s.db, params)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func createTodo(ctx context.Context, db *pgxpool.Pool, params CreateTodoParams) (int64, error) {
 	var id int64
 
-	row := s.db.QueryRow(ctx, "INSERT INTO todo (title, status) VALUES ($1, $2) RETURNING id", params.Title, params.Status)
+	row := db.QueryRow(ctx, "INSERT INTO todo (title, status) VALUES ($1, $2) RETURNING id", params.Title, params.Status)
 	err := row.Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -37,8 +50,17 @@ type UpdateTodoParams struct {
 	Status string
 }
 
-func (s *postgres) UpdateTodo(ctx context.Context, id int64, params UpdateTodoParams) error {
-	tag, err := s.db.Exec(ctx, "UPDATE todo SET title = $1, status = $2 WHERE id = $3", params.Title, params.Status, id)
+func (s *Store) UpdateTodo(ctx context.Context, id int64, params UpdateTodoParams) error {
+	err := updateTodo(ctx, s.db, id, params)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateTodo(ctx context.Context, db *pgxpool.Pool, id int64, params UpdateTodoParams) error {
+	tag, err := db.Exec(ctx, "UPDATE todo SET title = $1, status = $2 WHERE id = $3", params.Title, params.Status, id)
 	if err != nil {
 		return err
 	}
@@ -52,20 +74,29 @@ func (s *postgres) UpdateTodo(ctx context.Context, id int64, params UpdateTodoPa
 
 type FindTodosParams struct {
 	// optional
-	ID     *int64
+	ID     int64
 	IDs    []int64
-	Title  *string
-	Status *string
+	Title  string
+	Status string
 
 	// required
 	Limit  int
 	Offset int
 }
 
-func (s *postgres) FindTodos(ctx context.Context, params FindTodosParams) ([]Todo, error) {
+func (s *Store) FindTodos(ctx context.Context, params FindTodosParams) ([]Todo, error) {
+	todos, err := findTodos(ctx, s.db, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return todos, nil
+}
+
+func findTodos(ctx context.Context, db *pgxpool.Pool, params FindTodosParams) ([]Todo, error) {
 	var todos []Todo
 
-	rows, err := s.db.Query(ctx, "select * from todo")
+	rows, err := db.Query(ctx, "select * from todo limit $1 offset $2", params.Limit, params.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +116,17 @@ func (s *postgres) FindTodos(ctx context.Context, params FindTodosParams) ([]Tod
 	return todos, nil
 }
 
-func (s *postgres) DeleteTodo(ctx context.Context, id int64) error {
-	tag, err := s.db.Exec(ctx, "DELETE FROM todo WHERE id = $1", id)
+func (s *Store) DeleteTodo(ctx context.Context, id int64) error {
+	err := deleteTodo(ctx, s.db, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deleteTodo(ctx context.Context, db *pgxpool.Pool, id int64) error {
+	tag, err := db.Exec(ctx, "DELETE FROM todo WHERE id = $1", id)
 	if err != nil {
 		return err
 	}
