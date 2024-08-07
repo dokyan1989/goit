@@ -1,4 +1,4 @@
-package at
+package helloweb
 
 import (
 	"encoding/json"
@@ -8,12 +8,28 @@ import (
 
 /**
 |-------------------------------------------------------------------------
+| Utilities for JSON
+|-----------------------------------------------------------------------*/
+
+// convertToJSON wraps json.Marshal() function. If marshalled failed, returns error message.
+// It is intended for using in log function.
+func convertToJSON(src any) string {
+	b, err := json.Marshal(src)
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(b)
+}
+
+/**
+|-------------------------------------------------------------------------
 | diff helper functions
 |-----------------------------------------------------------------------*/
 
-// responseBodyCmp ...
-func responseBodyCmp() cmp.Options {
-	fv := cmp.FilterValues(
+// responseCmp ...
+func responseCmp() cmp.Option {
+	return cmp.FilterValues(
 		func(bx, by []byte) bool {
 			return json.Valid(bx) && json.Valid(by)
 		},
@@ -24,15 +40,4 @@ func responseBodyCmp() cmp.Options {
 			return out
 		}),
 	)
-
-	// ref: https://github.com/google/go-cmp/issues/73
-	fp := cmp.FilterPath(
-		func(p cmp.Path) bool {
-			step, ok := p[len(p)-1].(cmp.MapIndex)
-			return ok && step.Key().String() == "request_id"
-		},
-		cmp.Ignore(),
-	)
-
-	return cmp.Options{fv, fp}
 }

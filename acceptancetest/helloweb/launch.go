@@ -1,5 +1,5 @@
 // Ref: https://github.com/quii/go-graceful-shutdown/blob/main/acceptancetests/blackboxtestthings.go
-package at
+package helloweb
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	baseBinName = "helloapi-server"
+	baseBinName = "helloweb-server"
 )
 
 func LaunchTestProgram(port string) (cleanup func(), sendInterrupt func() error, err error) {

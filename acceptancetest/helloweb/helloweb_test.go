@@ -1,20 +1,19 @@
-package at
+package helloweb
 
 import (
 	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"testing"
 
 	"github.com/dokyan1989/goit/misc/t/httprequest"
 	"github.com/dokyan1989/goit/misc/t/seeder"
-	"github.com/google/go-cmp/cmp"
+	"github.com/sebdah/goldie/v2"
 )
 
-func TestAPI(t *testing.T) {
+func TestWeb(t *testing.T) {
 	type Input struct {
 		method          string
 		url             string
@@ -33,7 +32,7 @@ func TestAPI(t *testing.T) {
 		want  Want
 	}{
 		{
-			name: "healthcheck",
+			name: "health check",
 			input: Input{
 				method:          http.MethodGet,
 				url:             "http://localhost:3000/health",
@@ -46,18 +45,15 @@ func TestAPI(t *testing.T) {
 			},
 		},
 		{
-			name: "todocheck",
+			name: "todo web check",
 			input: Input{
-				method: http.MethodGet,
-				url:    "http://localhost:3000/api/v1/todos",
-				httpRequestOpts: httprequest.Options{
-					Query: url.Values{"ids": []string{"1", "2"}, "limit": []string{"10"}},
-				},
+				method:  http.MethodGet,
+				url:     "http://localhost:3000/v1/todos/1",
 				seedURL: "./sampledata",
 			},
 			want: Want{
 				statusCode: http.StatusOK,
-				body:       `{"data":{"todos":[{"id":1,"status":"UNKNOWN","title":"title 1"},{"id":2,"status":"DOING","title":"title 2"},{"id":3,"status":"DONE","title":"title 3"}]},"message":"success"}`,
+				body:       `{"data":{"todos":[{"id":1,"status":"UNKNOWN","title":"title 1"},{"id":2,"status":"DOING","title":"title 2"},{"id":3,"status":"DONE","title":"title 3"}]},"message":"ok"}`,
 			},
 		},
 	}
@@ -85,11 +81,8 @@ func TestAPI(t *testing.T) {
 				return
 			}
 
-			wantBody := []byte(tt.want.body)
-			diff := cmp.Diff(wantBody, gotBody, responseBodyCmp())
-			if diff != "" {
-				t.Errorf("Response body mismatch (-want +got):\n%s", diff)
-			}
+			g := goldie.New(t)
+			g.Assert(t, t.Name(), gotBody)
 		})
 	}
 

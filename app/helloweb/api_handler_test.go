@@ -1,4 +1,4 @@
-package helloapi
+package helloweb
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	todostore "github.com/dokyan1989/goit/internal/todo"
 	"github.com/dokyan1989/goit/internal/todo/todotest"
 	"github.com/dokyan1989/goit/misc/t/httprequest"
+	"github.com/go-chi/chi/middleware"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -24,9 +25,9 @@ func TestHandler_CreateTodo(t *testing.T) {
 	}
 
 	type Want struct {
-		createTodoParams   todostore.CreateTodoParams
-		responseStatusCode int
-		responseBody       string
+		createTodoParams todostore.CreateTodoParams
+		status           int
+		response         string
 	}
 
 	tests := []struct {
@@ -43,9 +44,9 @@ func TestHandler_CreateTodo(t *testing.T) {
 				mockCreatedID: 1,
 			},
 			want: Want{
-				createTodoParams:   todostore.CreateTodoParams{Title: "title", Status: TodoStatusUnknown},
-				responseStatusCode: http.StatusCreated,
-				responseBody:       `{"data":{"id":1},"message":"success"}`,
+				createTodoParams: todostore.CreateTodoParams{Title: "title", Status: TodoStatusUnknown},
+				status:           http.StatusCreated,
+				response:         `{"data":{"id":1},"message":"ok","request_id":"123"}`,
 			},
 		},
 		{
@@ -57,9 +58,9 @@ func TestHandler_CreateTodo(t *testing.T) {
 				mockErr: errors.New("error from store"),
 			},
 			want: Want{
-				createTodoParams:   todostore.CreateTodoParams{Title: "title", Status: TodoStatusUnknown},
-				responseStatusCode: http.StatusInternalServerError,
-				responseBody:       `{"error_message":"failed to create the record"}`,
+				createTodoParams: todostore.CreateTodoParams{Title: "title", Status: TodoStatusUnknown},
+				status:           http.StatusInternalServerError,
+				response:         `{"message":"failed to create the record","request_id":"123"}`,
 			},
 		},
 	}
@@ -80,6 +81,7 @@ func TestHandler_CreateTodo(t *testing.T) {
 			s := &server{todoStore: mockTodoStore}
 			w := httptest.NewRecorder()
 			r := httprequest.MustNewTest(t, http.MethodPost, "/api/v1/todos", tt.input.httpRequestOpts)
+			r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIDKey, "123"))
 
 			// action
 			makeAPIHandler(s.CreateTodo)(w, r)
@@ -93,20 +95,20 @@ func TestHandler_CreateTodo(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 
+			if res.StatusCode != tt.want.status {
+				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
+					tt.want.status, res.StatusCode,
+				)
+			}
+
 			gotBody, err := io.ReadAll(res.Body)
 			if err != nil {
 				t.Errorf("failed to read response body: %v", err)
 				return
 			}
+			wantBody := []byte(tt.want.response)
 
-			if res.StatusCode != tt.want.responseStatusCode {
-				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
-					tt.want.responseStatusCode, res.StatusCode,
-				)
-			}
-
-			wantBody := []byte(tt.want.responseBody)
-			if diff := cmp.Diff(wantBody, gotBody, responseBodyCmp()); diff != "" {
+			if diff := cmp.Diff(wantBody, gotBody, responseCmp()); diff != "" {
 				t.Errorf("respone body mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -120,10 +122,10 @@ func TestHandler_UpdateTodo(t *testing.T) {
 	}
 
 	type Want struct {
-		updateTodoID       int64
-		updateTodoParams   todostore.UpdateTodoParams
-		responseStatusCode int
-		responseBody       string
+		updateTodoID     int64
+		updateTodoParams todostore.UpdateTodoParams
+		status           int
+		response         string
 	}
 
 	tests := []struct {
@@ -140,10 +142,10 @@ func TestHandler_UpdateTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				updateTodoID:       1,
-				updateTodoParams:   todostore.UpdateTodoParams{Title: "title", Status: TodoStatusDoing},
-				responseStatusCode: http.StatusOK,
-				responseBody:       `{"data":{"id":1},"message":"success"}`,
+				updateTodoID:     1,
+				updateTodoParams: todostore.UpdateTodoParams{Title: "title", Status: TodoStatusDoing},
+				status:           http.StatusOK,
+				response:         `{"data":{"id":1},"message":"ok","request_id":"123"}`,
 			},
 		},
 		{
@@ -155,8 +157,8 @@ func TestHandler_UpdateTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				responseStatusCode: http.StatusBadRequest,
-				responseBody:       `{"error_message":"failed to parse route params 'id'"}`,
+				status:   http.StatusBadRequest,
+				response: `{"message":"failed to parse route params 'id'","request_id":"123"}`,
 			},
 		},
 		{
@@ -169,10 +171,10 @@ func TestHandler_UpdateTodo(t *testing.T) {
 				mockErr: errors.New("error from store"),
 			},
 			want: Want{
-				updateTodoID:       1,
-				updateTodoParams:   todostore.UpdateTodoParams{Title: "title", Status: TodoStatusDoing},
-				responseStatusCode: http.StatusInternalServerError,
-				responseBody:       `{"error_message":"failed to update the record"}`,
+				updateTodoID:     1,
+				updateTodoParams: todostore.UpdateTodoParams{Title: "title", Status: TodoStatusDoing},
+				status:           http.StatusInternalServerError,
+				response:         `{"message":"failed to update the record","request_id":"123"}`,
 			},
 		},
 	}
@@ -195,6 +197,7 @@ func TestHandler_UpdateTodo(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			r := httprequest.MustNewTest(t, http.MethodPut, "/api/v1/todos/{id}", tt.input.httpRequestOpts)
+			r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIDKey, "123"))
 			makeAPIHandler(s.UpdateTodo)(w, r)
 
 			// assert resutls
@@ -211,20 +214,20 @@ func TestHandler_UpdateTodo(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 
+			if res.StatusCode != tt.want.status {
+				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
+					tt.want.status, res.StatusCode,
+				)
+			}
+
 			gotBody, err := io.ReadAll(res.Body)
 			if err != nil {
 				t.Errorf("failed to read response body: %v", err)
 				return
 			}
+			wantBody := []byte(tt.want.response)
 
-			if res.StatusCode != tt.want.responseStatusCode {
-				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
-					tt.want.responseStatusCode, res.StatusCode,
-				)
-			}
-
-			wantBody := []byte(tt.want.responseBody)
-			if diff := cmp.Diff(wantBody, gotBody, responseBodyCmp()); diff != "" {
+			if diff := cmp.Diff(wantBody, gotBody, responseCmp()); diff != "" {
 				t.Errorf("respone body mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -239,9 +242,9 @@ func TestHandler_GetTodo(t *testing.T) {
 	}
 
 	type Want struct {
-		findTodoParams     todostore.FindTodosParams
-		responseStatusCode int
-		responseBody       string
+		findTodoParams todostore.FindTodosParams
+		status         int
+		response       string
 	}
 
 	tests := []struct {
@@ -260,9 +263,9 @@ func TestHandler_GetTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				findTodoParams:     todostore.FindTodosParams{ID: 1},
-				responseStatusCode: http.StatusOK,
-				responseBody:       `{"data":{"todo":{"id":1,"status":"UNKNOWN","title":"title"}},"message":"success"}`,
+				findTodoParams: todostore.FindTodosParams{ID: 1},
+				status:         http.StatusOK,
+				response:       `{"data":{"todo":{"id":1,"status":"UNKNOWN","title":"title"}},"message":"ok","request_id":"123"}`,
 			},
 		},
 		{
@@ -273,8 +276,8 @@ func TestHandler_GetTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				responseStatusCode: http.StatusBadRequest,
-				responseBody:       `{"error_message":"failed to parse route params 'id'"}`,
+				status:   http.StatusBadRequest,
+				response: `{"message":"failed to parse route params 'id'","request_id":"123"}`,
 			},
 		},
 		{
@@ -286,9 +289,9 @@ func TestHandler_GetTodo(t *testing.T) {
 				mockErr: errors.New("error from store"),
 			},
 			want: Want{
-				findTodoParams:     todostore.FindTodosParams{ID: 1},
-				responseStatusCode: http.StatusInternalServerError,
-				responseBody:       `{"error_message":"failed to get the record"}`,
+				findTodoParams: todostore.FindTodosParams{ID: 1},
+				status:         http.StatusInternalServerError,
+				response:       `{"message":"failed to get the record","request_id":"123"}`,
 			},
 		},
 	}
@@ -311,6 +314,7 @@ func TestHandler_GetTodo(t *testing.T) {
 			// action
 			w := httptest.NewRecorder()
 			r := httprequest.MustNewTest(t, http.MethodGet, "/api/v1/todos/{id}", tt.input.httpRequestOpts)
+			r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIDKey, "123"))
 			makeAPIHandler(s.GetTodo)(w, r)
 
 			// assert results
@@ -322,20 +326,20 @@ func TestHandler_GetTodo(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 
+			if res.StatusCode != tt.want.status {
+				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
+					tt.want.status, res.StatusCode,
+				)
+			}
+
 			gotBody, err := io.ReadAll(res.Body)
 			if err != nil {
 				t.Errorf("failed to read response body: %v", err)
 				return
 			}
+			wantBody := []byte(tt.want.response)
 
-			if res.StatusCode != tt.want.responseStatusCode {
-				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
-					tt.want.responseStatusCode, res.StatusCode,
-				)
-			}
-
-			wantBody := []byte(tt.want.responseBody)
-			if diff := cmp.Diff(wantBody, gotBody, responseBodyCmp()); diff != "" {
+			if diff := cmp.Diff(wantBody, gotBody, responseCmp()); diff != "" {
 				t.Errorf("respone body mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -350,9 +354,9 @@ func TestHandler_ListTodo(t *testing.T) {
 	}
 
 	type Want struct {
-		findTodosParams    todostore.FindTodosParams
-		responseStatusCode int
-		responseBody       string
+		findTodosParams todostore.FindTodosParams
+		status          int
+		response        string
 	}
 
 	tests := []struct {
@@ -372,9 +376,9 @@ func TestHandler_ListTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				findTodosParams:    todostore.FindTodosParams{IDs: []int64{1, 2}, Status: ""},
-				responseStatusCode: http.StatusOK,
-				responseBody:       `{"data":{"todos":[{"id":1,"status":"UNKNOWN","title":"title_1"},{"id":2,"status":"UNKNOWN","title":"title_2"}]},"message":"success"}`,
+				findTodosParams: todostore.FindTodosParams{IDs: []int64{1, 2}, Status: ""},
+				status:          http.StatusOK,
+				response:        `{"data":{"todos":[{"id":1,"status":"UNKNOWN","title":"title_1"},{"id":2,"status":"UNKNOWN","title":"title_2"}]},"message":"ok","request_id":"123"}`,
 			},
 		},
 		{
@@ -385,8 +389,8 @@ func TestHandler_ListTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				responseStatusCode: http.StatusBadRequest,
-				responseBody:       `{"error_message":"invalid: query parameters is empty"}`,
+				status:   http.StatusBadRequest,
+				response: `{"message":"invalid: query parameters is empty","request_id":"123"}`,
 			},
 		},
 		{
@@ -398,9 +402,9 @@ func TestHandler_ListTodo(t *testing.T) {
 				mockErr: errors.New("error from store"),
 			},
 			want: Want{
-				findTodosParams:    todostore.FindTodosParams{IDs: []int64{1, 2}, Status: ""},
-				responseStatusCode: http.StatusInternalServerError,
-				responseBody:       `{"error_message":"failed to list the records"}`,
+				findTodosParams: todostore.FindTodosParams{IDs: []int64{1, 2}, Status: ""},
+				status:          http.StatusInternalServerError,
+				response:        `{"message":"failed to list the records","request_id":"123"}`,
 			},
 		},
 	}
@@ -423,6 +427,7 @@ func TestHandler_ListTodo(t *testing.T) {
 			// action
 			w := httptest.NewRecorder()
 			r := httprequest.MustNewTest(t, http.MethodGet, "/api/v1/todos", tt.input.httpRequestOpts)
+			r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIDKey, "123"))
 			makeAPIHandler(s.ListTodos)(w, r)
 
 			// assert results
@@ -434,20 +439,20 @@ func TestHandler_ListTodo(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 
+			if res.StatusCode != tt.want.status {
+				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
+					tt.want.status, res.StatusCode,
+				)
+			}
+
 			gotBody, err := io.ReadAll(res.Body)
 			if err != nil {
 				t.Errorf("failed to read response body: %v", err)
 				return
 			}
+			wantBody := []byte(tt.want.response)
 
-			if res.StatusCode != tt.want.responseStatusCode {
-				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
-					tt.want.responseStatusCode, res.StatusCode,
-				)
-			}
-
-			wantBody := []byte(tt.want.responseBody)
-			if diff := cmp.Diff(wantBody, gotBody, responseBodyCmp()); diff != "" {
+			if diff := cmp.Diff(wantBody, gotBody, responseCmp()); diff != "" {
 				t.Errorf("respone body mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -461,9 +466,9 @@ func TestHandler_DeleteTodo(t *testing.T) {
 	}
 
 	type Want struct {
-		deleteTodoID       int64
-		responseStatusCode int
-		responseBody       string
+		deleteTodoID int64
+		status       int
+		response     string
 	}
 
 	tests := []struct {
@@ -479,9 +484,9 @@ func TestHandler_DeleteTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				deleteTodoID:       1,
-				responseStatusCode: http.StatusOK,
-				responseBody:       `{"data":{"id":1},"message":"success"}`,
+				deleteTodoID: 1,
+				status:       http.StatusOK,
+				response:     `{"data":{"id":1},"message":"ok","request_id":"123"}`,
 			},
 		},
 		{
@@ -492,8 +497,8 @@ func TestHandler_DeleteTodo(t *testing.T) {
 				},
 			},
 			want: Want{
-				responseStatusCode: http.StatusBadRequest,
-				responseBody:       `{"error_message":"failed to parse route params 'id'"}`,
+				status:   http.StatusBadRequest,
+				response: `{"message":"failed to parse route params 'id'","request_id":"123"}`,
 			},
 		},
 		{
@@ -505,9 +510,9 @@ func TestHandler_DeleteTodo(t *testing.T) {
 				mockErr: errors.New("error from store"),
 			},
 			want: Want{
-				deleteTodoID:       1,
-				responseStatusCode: http.StatusInternalServerError,
-				responseBody:       `{"error_message":"failed to delete the record"}`,
+				deleteTodoID: 1,
+				status:       http.StatusInternalServerError,
+				response:     `{"message":"failed to delete the record","request_id":"123"}`,
 			},
 		},
 	}
@@ -530,6 +535,7 @@ func TestHandler_DeleteTodo(t *testing.T) {
 			// action
 			w := httptest.NewRecorder()
 			r := httprequest.MustNewTest(t, http.MethodDelete, "/api/v1/todos/{id}", tt.input.httpRequestOpts)
+			r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIDKey, "123"))
 			makeAPIHandler(s.DeleteTodo)(w, r)
 
 			// assert results
@@ -541,20 +547,20 @@ func TestHandler_DeleteTodo(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 
+			if res.StatusCode != tt.want.status {
+				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
+					tt.want.status, res.StatusCode,
+				)
+			}
+
 			gotBody, err := io.ReadAll(res.Body)
 			if err != nil {
 				t.Errorf("failed to read response body: %v", err)
 				return
 			}
+			wantBody := []byte(tt.want.response)
 
-			if res.StatusCode != tt.want.responseStatusCode {
-				t.Errorf("response status code mismatch (-want +got):\n-\t%d\n+\t%d",
-					tt.want.responseStatusCode, res.StatusCode,
-				)
-			}
-
-			wantBody := []byte(tt.want.responseBody)
-			if diff := cmp.Diff(wantBody, gotBody, responseBodyCmp()); diff != "" {
+			if diff := cmp.Diff(wantBody, gotBody, responseCmp()); diff != "" {
 				t.Errorf("respone body mismatch (-want +got):\n%s", diff)
 			}
 		})

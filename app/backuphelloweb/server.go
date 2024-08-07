@@ -1,9 +1,10 @@
-package helloapi
+package backuphelloweb
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,26 +23,22 @@ import (
 
 type server struct {
 	opts *options
-
-	// stores
-	todoStore TodoStore
 }
 
-func NewServer(todoStore TodoStore, options ...Option) (*server, error) {
+func NewServer(options ...Option) (*server, error) {
 	opts := defaultConfig()
 	for _, opt := range options {
 		opt(opts)
 	}
 
 	svr := &server{
-		todoStore: todoStore,
-		opts:      opts,
+		opts: opts,
 	}
 
 	return svr, nil
 }
 
-func (s *server) Serve(cleanup func()) {
+func (s *server) Serve() {
 	// First setup API router
 	r := chi.NewRouter()
 	s.setupMiddlewares(r)
@@ -80,11 +77,6 @@ func (s *server) Serve(cleanup func()) {
 		zlog.Printf("server shutdown returned an err: %v\n", err)
 	}
 
-	defer func() {
-		cleanup()
-		zlog.Print("cleanup() function called")
-	}()
-
 	zlog.Print("Server exiting")
 }
 
@@ -122,19 +114,64 @@ func (s *server) setupMiddlewares(r *chi.Mux) {
 }
 
 func (s *server) setupEndpoints(r *chi.Mux) {
-	r.Route("/api/v1/todos", handleTodos(s))
-
 	// health check
 	checker := health.NewChecker()
 	r.Handle("/health", health.NewHandler(checker))
+
+	r.HandleFunc("/view/{title}", makeHandler(viewHandler))
+	r.HandleFunc("/edit/{title}", makeHandler(editHandler))
+	r.HandleFunc("/save/{title}", makeHandler(saveHandler))
+
+	// Method 1
+	// fmt.Println(os.Getwd())
+	// fs := http.FileServer(http.Dir("../../app/helloweb/static"))
+	// r.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	// Method 2
+	// FileServer(r, "/static", http.Dir("../../app/helloweb/static"))
+
+	// Method 3
+	FileServerFS(r, "/static", mustSubFS("static"))
 }
 
-func handleTodos(s *server) func(r chi.Router) {
-	return func(r chi.Router) {
-		r.Post("/", makeAPIHandler(s.CreateTodo))
-		r.Put("/{id}", makeAPIHandler(s.UpdateTodo))    // PUT /api/v1/todos/1
-		r.Get("/{id}", makeAPIHandler(s.GetTodo))       // GET /api/v1/todos/1
-		r.Get("/", makeAPIHandler(s.ListTodos))         // GET /api/v1/todos?limit=10&offset=0
-		r.Delete("/{id}", makeAPIHandler(s.DeleteTodo)) // DELETE /api/v1/todos/1
+// FileServerFS conveniently sets up a http.FileServer handler to serve
+// static files from a fs.FS.
+func FileServerFS(r chi.Router, path string, root fs.FS) {
+	if strings.ContainsAny(path, "{}*") {
+		panic("FileServer does not permit any URL parameters.")
 	}
+
+	if path != "/" && path[len(path)-1] != '/' {
+		r.Get(path, http.RedirectHandler(path+"/", http.StatusMovedPermanently).ServeHTTP)
+		path += "/"
+	}
+	path += "*"
+
+	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
+		rctx := chi.RouteContext(r.Context())
+		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
+		fs := http.StripPrefix(pathPrefix, http.FileServerFS(root))
+		fs.ServeHTTP(w, r)
+	})
+}
+
+// FileServer conveniently sets up a http.FileServer handler to serve
+// static files from a http.FileSystem.
+func FileServer(r chi.Router, path string, root http.FileSystem) {
+	if strings.ContainsAny(path, "{}*") {
+		panic("FileServer does not permit any URL parameters.")
+	}
+
+	if path != "/" && path[len(path)-1] != '/' {
+		r.Get(path, http.RedirectHandler(path+"/", http.StatusMovedPermanently).ServeHTTP)
+		path += "/"
+	}
+	path += "*"
+
+	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
+		rctx := chi.RouteContext(r.Context())
+		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
+		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
+		fs.ServeHTTP(w, r)
+	})
 }
